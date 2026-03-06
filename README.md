@@ -116,46 +116,10 @@ tinker/
       App.jsx                   # React notebook UI with progressive reveal
       lib/api.js                # API client
       styles.css                # Engineer's notebook theme
-  demo/                         # Self-contained HTML demo (no server needed)
   docs/
     architecture.md
     adding-a-domain.md          # Guide for extending to new product domains
 ```
-
----
-
-## Quickstart
-
-### Backend
-
-```bash
-cd backend
-poetry install
-cp .env.example .env          # add ANTHROPIC_API_KEY (optional)
-poetry run uvicorn tinker.main:app --reload --port 8000
-```
-
-Without an API key, the backend uses `HeuristicLLMClient` — deterministic mock responses so you can see the full pipeline run locally.
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev                   # http://localhost:5173
-```
-
-### Supabase (optional persistent storage)
-
-Run `backend/supabase/schema.sql` in your Supabase SQL editor, then set in `.env`:
-
-```
-SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
-```
-
-Without these, runs are stored in-memory and lost on restart.
-
 ---
 
 ## API
@@ -167,17 +131,6 @@ Without these, runs are stored in-memory and lost on restart.
 | `GET` | `/api/v1/runs/{run_id}/trace` | Get execution trace events |
 | `GET` | `/api/v1/runs/{run_id}/report` | Get final report (JSON) |
 | `GET` | `/api/v1/runs/{run_id}/report.md` | Get final report (plain markdown) |
-
----
-
-## Testing
-
-```bash
-cd backend
-poetry run pytest
-```
-
-Tests run the full pipeline end-to-end with `HeuristicLLMClient` — no API key needed. Validates that suggestions carry physics-validated metrics and the report is generated.
 
 ---
 
