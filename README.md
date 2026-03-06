@@ -8,7 +8,9 @@ The synth/MIDI domain is the first implementation. The architecture is designed 
 
 ---
 
-## How It Works
+## Demo
+
+![tinker demo](tinker_demo-ezgif.com-video-to-gif-converter.gif)
 
 __
 
