@@ -1,0 +1,20 @@
+[
+  {
+    "id": "rp2040_class_usb_midi",
+    "type": "mcu",
+    "family": "RP2040",
+    "clock_MHz": 133,
+    "typical_active_current_mA": 30,
+    "estimated_cost_usd": 1.2,
+    "tags": ["usb", "midi", "controller"]
+  },
+  {
+    "id": "stm32f4_usb_audio_midi",
+    "type": "mcu",
+    "family": "STM32F4",
+    "clock_MHz": 168,
+    "typical_active_current_mA": 55,
+    "estimated_cost_usd": 4.5,
+    "tags": ["usb", "audio", "midi"]
+  }
+]

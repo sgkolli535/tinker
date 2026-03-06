@@ -1,0 +1,22 @@
+[
+  {
+    "id": "ldo_5v_500ma",
+    "type": "regulator",
+    "topology": "ldo",
+    "vout_V": 5.0,
+    "iout_max_A": 0.5,
+    "efficiency_typ": 0.65,
+    "estimated_cost_usd": 0.25,
+    "estimated_current_mA": 0
+  },
+  {
+    "id": "buck_5v_1a",
+    "type": "regulator",
+    "topology": "buck",
+    "vout_V": 5.0,
+    "iout_max_A": 1.0,
+    "efficiency_typ": 0.9,
+    "estimated_cost_usd": 0.55,
+    "estimated_current_mA": 0
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "i2s_codec_24bit_48k",
+    "type": "audio codec",
+    "max_sample_rate_kHz": 96,
+    "snr_dB": 100,
+    "estimated_current_mA": 50,
+    "estimated_cost_usd": 1.8
+  },
+  {
+    "id": "opamp_tl072",
+    "type": "opamp",
+    "gbw_MHz": 3.0,
+    "estimated_current_mA": 10,
+    "estimated_cost_usd": 0.35
+  }
+]

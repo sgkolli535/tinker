@@ -1,0 +1,20 @@
+[
+  {
+    "id": "usb_c_device_port",
+    "type": "usb-c",
+    "estimated_current_mA": 0,
+    "estimated_cost_usd": 0.2
+  },
+  {
+    "id": "din5_midi_in_out",
+    "type": "din-midi",
+    "estimated_current_mA": 5,
+    "estimated_cost_usd": 1.1
+  },
+  {
+    "id": "jack_6p35_trs_panel",
+    "type": "audio-jack",
+    "estimated_current_mA": 0,
+    "estimated_cost_usd": 0.7
+  }
+]

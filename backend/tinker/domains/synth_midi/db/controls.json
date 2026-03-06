@@ -1,0 +1,28 @@
+[
+  {
+    "id": "encoder_24det_push",
+    "type": "rotary encoder",
+    "detents": 24,
+    "has_push_switch": true,
+    "estimated_current_mA": 1,
+    "estimated_cost_usd": 0.6
+  },
+  {
+    "id": "fader_60mm",
+    "type": "fader",
+    "estimated_current_mA": 1,
+    "estimated_cost_usd": 0.9
+  },
+  {
+    "id": "pads_rgb_matrix",
+    "type": "pads",
+    "estimated_current_mA": 10,
+    "estimated_cost_usd": 2.4
+  },
+  {
+    "id": "oled_small",
+    "type": "display",
+    "estimated_current_mA": 40,
+    "estimated_cost_usd": 2.0
+  }
+]
