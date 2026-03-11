@@ -1,47 +1,8 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import Any
 
 from tinker.domain import DomainAdapter
-
-
-def _apply_suggestion(components: list[dict[str, Any]], suggestion: dict[str, Any]) -> list[dict[str, Any]]:
-    """Apply a suggested component swap to a copy of the component list.
-
-    Uses a simple heuristic: if the suggestion mentions a component role or
-    match id, substitute or adjust it. Falls back to returning the original
-    list unchanged so we can still compare before/after physics.
-    """
-    modified = deepcopy(components)
-    change_lower = suggestion.get("change", "").lower()
-
-    for comp in modified:
-        role = str(comp.get("role", "")).lower()
-        best = str(comp.get("best_match", "")).lower()
-
-        # Buck regulator swap
-        if "buck" in change_lower and ("ldo" in best or "regulator" in role):
-            comp["best_match"] = "buck_5v_1a"
-            comp["estimated_current_mA"] = max(0, comp.get("estimated_current_mA", 0) * 0.6)
-            break
-
-        # LED driver addition — reduce pad/LED current draw
-        if "led driver" in change_lower and ("pad" in role or "led" in role):
-            comp["estimated_current_mA"] = max(0, comp.get("estimated_current_mA", 0) * 0.5)
-            break
-
-        # MCU swap
-        if "mcu" in change_lower and "mcu" in role:
-            comp["best_match"] = suggestion.get("new_component", comp["best_match"])
-            break
-
-        # Codec upgrade
-        if "codec" in change_lower and ("codec" in role or "audio" in role):
-            comp["best_match"] = suggestion.get("new_component", comp["best_match"])
-            break
-
-    return modified
 
 
 def alternative_suggester_node(state: dict[str, Any], adapter: DomainAdapter, llm: Any) -> dict[str, Any]:
@@ -75,7 +36,7 @@ def alternative_suggester_node(state: dict[str, Any], adapter: DomainAdapter, ll
         seen_changes.add(change)
 
         # Apply the suggested modification to a copy of the components
-        modified_components = _apply_suggestion(components, suggestion)
+        modified_components = adapter.apply_suggestion(components, suggestion)
 
         # Re-run physics validation with the modified components
         new_validation = adapter.validate_physics(modified_components, spatial)
