@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -132,6 +133,51 @@ class SynthMidiDomainAdapter(DomainAdapter):
             )
 
         return suggestions
+
+    # -- Swap rules keyed by (change keyword, component role/match keyword) -------
+    # Each rule: (change_kw, comp_kw_field, comp_kw, mutation)
+    # comp_kw_field is which component field to match: "best_match" or "role".
+    _SWAP_RULES: list[tuple[str, str, str, dict[str, Any]]] = [
+        # Buck regulator swap — match LDOs or regulators
+        ("buck", "best_match", "ldo", {"best_match": "buck_5v_1a", "current_factor": 0.6}),
+        ("buck", "role", "regulator", {"best_match": "buck_5v_1a", "current_factor": 0.6}),
+        # LED driver — reduce pad/LED current
+        ("led driver", "role", "pad", {"current_factor": 0.5}),
+        ("led driver", "role", "led", {"current_factor": 0.5}),
+        # MCU swap — use new_component from suggestion if provided
+        ("mcu", "role", "mcu", {"use_suggestion_component": True}),
+        # Codec upgrade
+        ("codec", "role", "codec", {"use_suggestion_component": True}),
+        ("codec", "role", "audio", {"use_suggestion_component": True}),
+    ]
+
+    def apply_suggestion(
+        self, components: list[dict[str, Any]], suggestion: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        modified = deepcopy(components)
+        change_lower = suggestion.get("change", "").lower()
+
+        for change_kw, field, comp_kw, mutation in self._SWAP_RULES:
+            if change_kw not in change_lower:
+                continue
+            for comp in modified:
+                value = str(comp.get(field, "")).lower()
+                if comp_kw not in value:
+                    continue
+                # Apply the mutation
+                if mutation.get("use_suggestion_component"):
+                    comp["best_match"] = suggestion.get(
+                        "new_component", comp["best_match"]
+                    )
+                elif "best_match" in mutation:
+                    comp["best_match"] = mutation["best_match"]
+                if "current_factor" in mutation:
+                    comp["estimated_current_mA"] = max(
+                        0, comp.get("estimated_current_mA", 0) * mutation["current_factor"]
+                    )
+                return modified  # one swap per suggestion
+
+        return modified
 
     def get_domain_name(self) -> str:
         return "synth_midi"
