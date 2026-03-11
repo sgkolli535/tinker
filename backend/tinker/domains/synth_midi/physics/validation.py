@@ -19,6 +19,41 @@ def validate(matched_components: list[dict[str, Any]], spatial: dict[str, Any]) 
     latency_ms = estimate_control_latency_ms(num_controls=max(num_controls, 12))
     audio_headroom = estimate_line_out_headroom_dbu()
 
+    # Determine MIDI IN isolation status from matched components.
+    has_din_midi = any(
+        "din" in str(c.get("best_match", "")).lower() or "midi" in str(c.get("best_match", "")).lower()
+        for c in matched_components
+        if str(c.get("role", "")).lower() not in {"mcu", "usb", "usb-c"}
+    )
+    has_optocoupler = any(
+        "opto" in str(c.get("best_match", "")).lower()
+        or "opto" in str(c.get("role", "")).lower()
+        or "opto" in str(c.get("identified_as", "")).lower()
+        for c in matched_components
+    )
+
+    if not has_din_midi:
+        midi_check = {
+            "name": "MIDI IN isolation",
+            "value": "N/A",
+            "status": "pass",
+            "note": "No DIN MIDI port detected; USB-only device",
+        }
+    elif has_optocoupler:
+        midi_check = {
+            "name": "MIDI IN isolation",
+            "value": "Confirmed",
+            "status": "pass",
+            "note": "Optocoupler detected for MIDI IN galvanic isolation",
+        }
+    else:
+        midi_check = {
+            "name": "MIDI IN isolation",
+            "value": "Missing",
+            "status": "warn",
+            "note": "DIN MIDI port detected but no optocoupler confirmed from photos",
+        }
+
     checks = [
         power_check,
         {
@@ -33,12 +68,7 @@ def validate(matched_components: list[dict[str, Any]], spatial: dict[str, Any]) 
             "status": "pass" if audio_headroom >= 10 else "warn",
             "note": "Meets pro-ish target" if audio_headroom >= 10 else "Limited headroom on low rails",
         },
-        {
-            "name": "MIDI IN isolation",
-            "value": "Inferred",
-            "status": "warn",
-            "note": "Optocoupler not confirmed from photos",
-        },
+        midi_check,
     ]
 
     bottlenecks = []
