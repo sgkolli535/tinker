@@ -2,8 +2,29 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import mimetypes
+import time
+from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+MAX_RETRIES = 3
+RETRY_BACKOFF_BASE = 1.5  # seconds
+
+
+def _extract_json(text: str) -> dict[str, Any]:
+    """Parse JSON from LLM output, tolerating markdown fences."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Try to extract a top-level JSON object from the response.
+        start = text.find("{")
+        end = text.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(text[start : end + 1])
+        raise
 
 
 class AnthropicJSONClient:
@@ -15,39 +36,62 @@ class AnthropicJSONClient:
         self._client = Anthropic(api_key=api_key)
         self._model = model
 
+    def _encode_image(self, image_path: str) -> dict[str, Any] | None:
+        path = Path(image_path)
+        if not path.is_file():
+            logger.warning("Image file not found, skipping: %s", image_path)
+            return None
+        try:
+            image_bytes = path.read_bytes()
+        except OSError as exc:
+            logger.warning("Failed to read image %s: %s", image_path, exc)
+            return None
+        media_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
+        return {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": base64.b64encode(image_bytes).decode("utf-8"),
+            },
+        }
+
     def generate_json(self, prompt: str, images: list[str] | None = None) -> dict[str, Any]:
         content: list[dict[str, Any]] = []
         if images:
             for image_path in images:
-                with open(image_path, "rb") as f:
-                    image_bytes = f.read()
-                media_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
-                content.append(
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": base64.b64encode(image_bytes).decode("utf-8"),
-                        },
-                    }
-                )
+                block = self._encode_image(image_path)
+                if block:
+                    content.append(block)
         content.append({"type": "text", "text": f"Return strict JSON only.\n{prompt}"})
-        message = self._client.messages.create(
-            model=self._model,
-            max_tokens=1200,
-            temperature=0,
-            messages=[{"role": "user", "content": content}],
-        )
-        text = "".join(block.text for block in message.content if hasattr(block, "text"))
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            start = text.find("{")
-            end = text.rfind("}")
-            if start >= 0 and end > start:
-                return json.loads(text[start : end + 1])
-            raise
+
+        last_exc: Exception | None = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                message = self._client.messages.create(
+                    model=self._model,
+                    max_tokens=1200,
+                    temperature=0,
+                    messages=[{"role": "user", "content": content}],
+                )
+                text = "".join(block.text for block in message.content if hasattr(block, "text"))
+                return _extract_json(text)
+            except json.JSONDecodeError:
+                logger.warning("LLM returned non-JSON on attempt %d, retrying", attempt + 1)
+                last_exc = last_exc  # keep original
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if attempt < MAX_RETRIES - 1:
+                    wait = RETRY_BACKOFF_BASE * (2 ** attempt)
+                    logger.warning("Anthropic API error (attempt %d/%d): %s — retrying in %.1fs", attempt + 1, MAX_RETRIES, exc, wait)
+                    time.sleep(wait)
+                    continue
+                break
+
+        logger.error("All %d LLM attempts failed", MAX_RETRIES)
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("LLM call failed with no captured exception")
 
 
 class HeuristicLLMClient:
