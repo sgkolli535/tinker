@@ -36,5 +36,16 @@ class DomainAdapter(ABC):
         ...
 
     @abstractmethod
+    def apply_suggestion(
+        self, components: list[dict[str, Any]], suggestion: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Apply a suggested modification to a copy of the component list.
+
+        Each domain knows how its component swaps map to actual spec changes.
+        Returns a modified copy — the original must not be mutated.
+        """
+        ...
+
+    @abstractmethod
     def get_domain_name(self) -> str:
         ...
