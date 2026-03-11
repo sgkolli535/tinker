@@ -9,6 +9,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
+from tinker.domain import DomainAdapter
 from tinker.domains.synth_midi.adapter import SynthMidiDomainAdapter
 from tinker.graph import run_pipeline
 from tinker.llm import AnthropicJSONClient, HeuristicLLMClient
@@ -44,6 +45,21 @@ upload_root = Path("./.runs/uploads")
 upload_root.mkdir(parents=True, exist_ok=True)
 
 
+DOMAIN_ADAPTERS: dict[str, type[DomainAdapter]] = {
+    "synth_midi": SynthMidiDomainAdapter,
+}
+
+
+def get_adapter(domain: str) -> DomainAdapter:
+    cls = DOMAIN_ADAPTERS.get(domain)
+    if cls is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown domain '{domain}'. Available: {', '.join(sorted(DOMAIN_ADAPTERS))}",
+        )
+    return cls()
+
+
 def get_llm_client() -> Any:
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if api_key:
@@ -66,8 +82,8 @@ async def _persist_files(run_id: str, files: list[UploadFile]) -> list[str]:
     return paths
 
 
-async def _execute_run(run_id: str, images: list[str], user_context: str | None) -> None:
-    adapter = SynthMidiDomainAdapter()
+async def _execute_run(run_id: str, images: list[str], user_context: str | None, domain: str = "synth_midi") -> None:
+    adapter = get_adapter(domain)
     llm = get_llm_client()
     loop = asyncio.get_running_loop()
 
@@ -133,14 +149,18 @@ async def _execute_run(run_id: str, images: list[str], user_context: str | None)
 async def create_run(
     images: list[UploadFile] = File(...),
     user_context: str | None = Form(default=None),
+    domain: str = Form(default="synth_midi"),
 ) -> CreateRunResponse:
     if not images:
         raise HTTPException(status_code=400, detail="At least one image is required")
 
+    # Validate domain early so the caller gets a 400, not a silent background failure.
+    get_adapter(domain)
+
     run_id = new_run_id()
     await store.create(run_id)
     paths = await _persist_files(run_id, images)
-    asyncio.create_task(_execute_run(run_id=run_id, images=paths, user_context=user_context))
+    asyncio.create_task(_execute_run(run_id=run_id, images=paths, user_context=user_context, domain=domain))
     return CreateRunResponse(run_id=run_id, status="queued")
 
 
